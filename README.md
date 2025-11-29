@@ -3,14 +3,6 @@
 ## 📋 프로젝트 개요
 이 프로젝트는 Amazon 판매 데이터를 분석하고 PyTorch를 사용하여 판매량을 예측하는 딥러닝 모델을 구현합니다.
 
-### 주요 특징
-- 🔍 **포괄적인 데이터 분석**: 시각화 및 통계 분석
-- 🛠️ **완전한 전처리 파이프라인**: 결측치 처리, 특성 추출, 정규화
-- 🤖 **3가지 모델 아키텍처**: Basic, Advanced (Residual), Attention
-- 📊 **고급 학습 기능**: Early Stopping, Learning Rate Scheduling, Dropout
-- 📈 **종합적인 평가**: MAE, RMSE, R² 등 다양한 성능 지표
-- 🎨 **풍부한 시각화**: 학습 곡선, 예측 결과, 상관관계 분석
-
 ## 📦 데이터셋
 - **출처**: [Kaggle - E-Commerce Sales Dataset](https://www.kaggle.com/datasets/thedevastator/unlock-profits-with-e-commerce-sales-data)
 - **파일**: Amazon Sale Report.csv
@@ -22,7 +14,6 @@ amazon-sales-prediction/
 ├── README.md                          # 프로젝트 문서
 ├── requirements.txt                   # Python 패키지 목록
 ├── run_guide.sh                       # 실행 가이드 스크립트
-├── amazon_sales_prediction.ipynb      # Jupyter 노트북
 │
 ├── 📊 데이터 파일
 │   └── Amazon Sale Report.csv         # Kaggle에서 다운로드 필요
