@@ -1,0 +1,42 @@
+=== Amazon 판매 데이터 요약 ===
+
+전체 행 수: 128975
+전체 열 수: 24
+
+=== 컬럼 목록 ===
+- index (int64)
+- Order ID (object)
+- Date (object)
+- Status (object)
+- Fulfilment (object)
+- Sales Channel  (object)
+- ship-service-level (object)
+- Style (object)
+- SKU (object)
+- Category (object)
+- Size (object)
+- ASIN (object)
+- Courier Status (object)
+- Qty (int64)
+- currency (object)
+- Amount (float64)
+- ship-city (object)
+- ship-state (object)
+- ship-postal-code (float64)
+- ship-country (object)
+- promotion-ids (object)
+- B2B (bool)
+- fulfilled-by (object)
+- Unnamed: 22 (object)
+
+=== 결측치 정보 ===
+- Courier Status: 6872 (5.33%)
+- currency: 7795 (6.04%)
+- Amount: 7795 (6.04%)
+- ship-city: 33 (0.03%)
+- ship-state: 33 (0.03%)
+- ship-postal-code: 33 (0.03%)
+- ship-country: 33 (0.03%)
+- promotion-ids: 49153 (38.11%)
+- fulfilled-by: 89698 (69.55%)
+- Unnamed: 22: 49050 (38.03%)
