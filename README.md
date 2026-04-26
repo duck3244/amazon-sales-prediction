@@ -1,5 +1,7 @@
 # Amazon E-Commerce Sales Prediction
 
+![Demo](demo.png)
+
 Amazon 판매 데이터를 학습해 매출(Amount)을 예측하는 풀스택 ML 애플리케이션. PyTorch 기반 3종 회귀 모델(MLP / Residual / Attention)을 FastAPI로 서빙하고, Vue 3 SPA에서 업로드 → 전처리 → 학습 → 평가 → 예측 워크플로를 인터랙티브하게 사용합니다.
 
 상세 설계 문서는 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), 다이어그램은 [`docs/UML.md`](docs/UML.md) 참고.
