@@ -1,538 +1,299 @@
-# Amazon E-Commerce Sales Prediction Project
+# Amazon E-Commerce Sales Prediction
 
-## 📋 프로젝트 개요
-이 프로젝트는 Amazon 판매 데이터를 분석하고 PyTorch를 사용하여 판매량을 예측하는 딥러닝 모델을 구현합니다.
+Amazon 판매 데이터를 학습해 매출(Amount)을 예측하는 풀스택 ML 애플리케이션. PyTorch 기반 3종 회귀 모델(MLP / Residual / Attention)을 FastAPI로 서빙하고, Vue 3 SPA에서 업로드 → 전처리 → 학습 → 평가 → 예측 워크플로를 인터랙티브하게 사용합니다.
 
-## 📦 데이터셋
-- **출처**: [Kaggle - E-Commerce Sales Dataset](https://www.kaggle.com/datasets/thedevastator/unlock-profits-with-e-commerce-sales-data)
-- **파일**: Amazon Sale Report.csv
+상세 설계 문서는 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), 다이어그램은 [`docs/UML.md`](docs/UML.md) 참고.
 
-## 📁 프로젝트 구조
+---
+
+## 핵심 기능
+
+- **CSV 업로드 + 자동 요약** — 행/열, 결측치, dtype 통계
+- **데이터 누수 방지 전처리 파이프라인** — fit은 train 분할에서만, transform은 모든 분할에서 (sklearn 컨벤션). 재사용을 위해 `preprocessor.pkl`로 직렬화
+- **3종 PyTorch 모델 비교** — Basic MLP / Residual / Multi-head Attention
+- **비동기 학습 잡 + 실시간 진행률** — 1.5s 폴링으로 손실 곡선·로그·에폭 진행도 라이브 반영
+- **모델 평가 / 비교** — MAE · MSE · RMSE · R² + 산점도/잔차 시각화
+- **단일 / 배치 예측** — 신규 CSV를 업로드해 학습 시 동일 전처리 적용 후 결과 CSV 다운로드
+
+---
+
+## 기술 스택
+
+- **백엔드** — Python 3.10, FastAPI 0.115, Uvicorn, PyTorch 2.x, scikit-learn 1.3, pandas 2.x, matplotlib, seaborn
+- **프론트엔드** — Vue 3 (Composition API), TypeScript, Vite 5, Pinia 2 (+ persistedstate), Vue Router 4, Tailwind 3, ECharts 5, axios
+- **영속화** — 파일 시스템(`.npy`, `.pkl`, `.pth`, `.json`). DB 미사용
+
+---
+
+## 데이터셋
+
+- **출처**: [Kaggle — E-Commerce Sales Dataset](https://www.kaggle.com/datasets/thedevastator/unlock-profits-with-e-commerce-sales-data)
+- **파일**: `Amazon Sale Report.csv`
+- **타깃**: `Amount` (회귀)
+
+---
+
+## 프로젝트 구조
+
 ```
 amazon-sales-prediction/
-│
-├── README.md                          # 프로젝트 문서
-├── requirements.txt                   # Python 패키지 목록
-├── run_guide.sh                       # 실행 가이드 스크립트
-│
-├── 📊 데이터 파일
-│   └── Amazon Sale Report.csv         # Kaggle에서 다운로드 필요
-│
-├── 🔧 핵심 스크립트
-│   ├── data_analysis.py               # 데이터 탐색 및 시각화
-│   ├── data_preprocessing.py          # 데이터 전처리
-│   ├── model.py                       # PyTorch 모델 정의
-│   ├── train.py                       # 모델 학습
-│   ├── predict.py                     # 예측 및 평가
-│   └── utils.py                       # 유틸리티 함수
-│
-├── 💾 전처리된 데이터 (자동 생성)
-│   ├── X_train.npy, y_train.npy      # 학습 데이터
-│   ├── X_val.npy, y_val.npy          # 검증 데이터
-│   ├── X_test.npy, y_test.npy        # 테스트 데이터
-│   └── preprocessor.pkl               # 전처리 객체
-│
-├── 🤖 모델 디렉토리 (자동 생성)
-│   └── models/
-│       ├── best_model.pth             # 최고 성능 모델
-│       ├── config.json                # 모델 설정
-│       └── training_history.png       # 학습 곡선
-│
-└── 📈 결과 디렉토리 (자동 생성)
-    └── results/
-        ├── evaluation_results.json    # 성능 지표
-        ├── predictions.csv            # 예측 결과
-        └── prediction_visualization.png
+├── README.md
+├── docs/
+│   ├── ARCHITECTURE.md            # 시스템 아키텍처
+│   └── UML.md                     # Mermaid UML 다이어그램
+├── backend/
+│   ├── requirements.txt
+│   ├── run_guide.sh
+│   ├── Amazon Sale Report.csv     # Kaggle에서 다운로드 후 배치
+│   ├── data_analysis.py           # EDA 스크립트
+│   ├── data_preprocessing.py      # DataPreprocessor (fit/transform)
+│   ├── model.py                   # SalesPredictor / Advanced / Attention
+│   ├── train.py                   # SalesDataset, EarlyStopping, Trainer
+│   ├── predict.py                 # Predictor + 평가/시각화 헬퍼
+│   ├── utils.py                   # 시드, 디바이스, 결과 분석 유틸
+│   ├── X_*.npy / y_*.npy          # 전처리 산출물 (자동 생성)
+│   ├── preprocessor.pkl           # 학습된 전처리기 (자동 생성)
+│   ├── models/{basic,advanced,attention}/
+│   │   ├── best_model.pth
+│   │   ├── config.json
+│   │   └── training_history.png
+│   ├── results/                   # 평가/시각화 산출물
+│   └── app/                       # FastAPI 애플리케이션
+│       ├── main.py                # 라우터 등록 + CORS + SPA fallback
+│       ├── settings.py            # 경로/CORS/업로드 한도 상수
+│       ├── schemas.py             # Pydantic 스키마
+│       ├── api/                   # data, preprocess, train, predict 라우터
+│       └── services/              # job_store, training/predict/dataset 서비스
+└── frontend/
+    ├── package.json
+    ├── vite.config.ts             # /api → :8000 프록시
+    └── src/
+        ├── api/                   # axios 클라이언트 + 도메인별 호출 + OpenAPI 타입
+        ├── components/            # StatCard, HealthBadge, LossChart, ScatterChart, MetricBarChart
+        ├── stores/                # Pinia: dataset, training (jobId persisted)
+        ├── views/                 # Upload, Train, Evaluate, Compare, Predict
+        ├── router/                # vue-router (history 모드)
+        ├── App.vue
+        └── main.ts
 ```
+
+> 모든 Python 명령은 `backend/` 디렉토리에서 실행합니다.
 
 ---
 
-## 🚀 시작하기
+## 빠른 시작 (개발 모드)
 
-### Step 1: 환경 설정
+터미널 두 개를 띄웁니다.
 
-#### 필수 요구사항
-- Python 3.8 이상
-- pip 패키지 매니저
-
-#### 패키지 설치
 ```bash
+# Terminal 1 — 백엔드
+cd backend
 pip install -r requirements.txt
+python -m uvicorn app.main:app --reload --port 8000 --workers 1
+
+# Terminal 2 — 프론트엔드
+cd frontend
+npm install        # 최초 1회
+npm run dev        # http://localhost:5173
 ```
 
-**설치되는 주요 패키지:**
-- `torch>=2.0.0` - PyTorch 딥러닝 프레임워크
-- `numpy>=1.24.0` - 수치 계산
-- `pandas>=2.0.0` - 데이터 처리
-- `scikit-learn>=1.3.0` - 전처리 및 평가
-- `matplotlib>=3.7.0` - 시각화
-- `seaborn>=0.12.0` - 고급 시각화
+브라우저에서 `http://localhost:5173`에 접속하면 Vite가 `/api/*` 요청을 8000번 백엔드로 프록시합니다.
 
----
+OpenAPI 스키마가 변경되면 프론트 타입 재생성:
 
-### Step 2: 데이터 다운로드
-
-1. Kaggle 웹사이트 접속
-   ```
-   https://www.kaggle.com/datasets/thedevastator/unlock-profits-with-e-commerce-sales-data
-   ```
-
-2. `Amazon Sale Report.csv` 파일 다운로드
-
-3. 프로젝트 루트 디렉토리에 저장
-   ```
-   amazon-sales-prediction/
-   └── Amazon Sale Report.csv  ← 여기에 저장
-   ```
-
----
-
-### Step 3: 데이터 탐색 및 분석
-
-#### 실행 명령어
 ```bash
-python data_analysis.py
-```
-
-#### 수행 작업
-- ✅ 데이터 기본 정보 출력 (shape, 컬럼, 데이터 타입)
-- ✅ 기술 통계 계산
-- ✅ 결측치 분석
-- ✅ 수치형 변수 분포 시각화
-- ✅ 범주형 변수 분포 분석
-- ✅ 상관관계 히트맵 생성
-- ✅ 이상치 탐지 (IQR 방법)
-
-#### 생성되는 파일
-```
-📊 numerical_features_distribution.png  # 수치형 변수 분포
-📊 correlation_heatmap.png              # 상관관계 히트맵
-📊 [변수명]_distribution.png            # 범주형 변수 분포들
-📄 data_summary.txt                     # 데이터 요약 정보
+cd frontend
+npm run gen:api    # → src/api/schema.d.ts
 ```
 
 ---
 
-### Step 4: 데이터 전처리
+## 운영(빌드) 모드 — 단일 프로세스
 
-#### 실행 명령어
+프런트를 빌드해두면 FastAPI가 정적 자산까지 함께 서빙합니다 (포트 1개).
+
 ```bash
-python data_preprocessing.py
+# 1) 프론트 빌드
+cd frontend && npm run build       # → frontend/dist/
+
+# 2) 백엔드 실행
+cd ../backend
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
 ```
 
-#### 수행 작업
-1. **결측치 처리**
-   - 수치형: 중앙값으로 대체
-   - 범주형: 최빈값으로 대체
+`http://localhost:8000` 한 곳에서:
+- `/`, `/upload`, `/train`, `/predict` 등 SPA 라우트 → `index.html`
+- `/api/*` → REST API (없는 경로는 404 JSON, SPA fallback 안 됨)
+- `/assets/*`, `/openapi.json`, `/docs` → 정상 동작
 
-2. **날짜 특성 추출**
-   - year, month, day, dayofweek, quarter
+---
 
-3. **범주형 변수 인코딩**
-   - Label Encoding
-   - 카테고리 수가 많은 경우 상위 50개만 유지
+## 환경 요구사항
 
-4. **추가 특성 생성**
-   - 평균 가격 등 파생 변수
+- Python 3.10 권장 (검증 환경: `py310_pt`)
+- Node.js 18+
+- CUDA GPU (선택) — 학습 가속용. 없으면 자동으로 CPU 사용
 
-5. **이상치 제거**
-   - IQR 방법 (threshold=1.5)
+권장 conda 환경:
 
-6. **특성 정규화**
-   - StandardScaler 적용
-
-7. **데이터 분할**
-   - Train: 70%
-   - Validation: 10%
-   - Test: 20%
-
-#### 생성되는 파일
+```bash
+conda create -n amazon-sales python=3.10 -y
+conda activate amazon-sales
+cd backend && pip install -r requirements.txt
 ```
-💾 X_train.npy          # 학습 특성 데이터
-💾 y_train.npy          # 학습 타겟 데이터
-💾 X_val.npy            # 검증 특성 데이터
-💾 y_val.npy            # 검증 타겟 데이터
-💾 X_test.npy           # 테스트 특성 데이터
-💾 y_test.npy           # 테스트 타겟 데이터
-💾 preprocessor.pkl     # 전처리 객체 (스케일러, 인코더)
+
+검증 환경 버전:
+```
+python=3.10  torch=2.4.1+cu121  numpy=1.24  pandas=2.0  scikit-learn=1.3
 ```
 
 ---
 
-### Step 5: 모델 학습
+## UI 워크플로
 
-#### 기본 실행
-```bash
-python train.py --epochs 100 --batch_size 32 --lr 0.001
-```
-
-#### 모델 타입별 학습
-
-**1. Basic 모델 (기본 MLP)**
-```bash
-python train.py \
-  --model_type basic \
-  --epochs 100 \
-  --batch_size 32 \
-  --lr 0.001
-```
-- 3개의 완전 연결층 (256→128→64)
-- BatchNorm + ReLU + Dropout
-
-**2. Advanced 모델 (잔차 연결)**
-```bash
-python train.py \
-  --model_type advanced \
-  --epochs 100 \
-  --batch_size 32 \
-  --lr 0.001
-```
-- Residual Blocks
-- Skip connections
-- 깊은 네트워크 학습 용이
-
-**3. Attention 모델**
-```bash
-python train.py \
-  --model_type attention \
-  --epochs 100 \
-  --batch_size 32 \
-  --lr 0.001
-```
-- Multi-head Self-Attention
-- Feed-forward Network
-- 특성 간 관계 학습
-
-#### 커스텀 하이퍼파라미터
-```bash
-python train.py \
-  --model_type basic \
-  --hidden_dims 512 256 128 \
-  --dropout 0.4 \
-  --epochs 150 \
-  --batch_size 64 \
-  --lr 0.0005 \
-  --weight_decay 1e-4 \
-  --patience 20
-```
-
-#### 주요 파라미터 설명
-
-| 파라미터 | 설명 | 기본값 |
-|---------|------|--------|
-| `--model_type` | 모델 타입 (basic/advanced/attention) | basic |
-| `--hidden_dims` | 은닉층 차원 리스트 | [256, 128, 64] |
-| `--dropout` | 드롭아웃 비율 | 0.3 |
-| `--epochs` | 학습 에포크 수 | 100 |
-| `--batch_size` | 배치 크기 | 32 |
-| `--lr` | 학습률 | 0.001 |
-| `--weight_decay` | L2 정규화 가중치 | 1e-5 |
-| `--patience` | Early Stopping patience | 15 |
-| `--seed` | 랜덤 시드 | 42 |
-
-#### 생성되는 파일
-```
-📁 models/
-  ├── best_model.pth           # 최고 성능 모델 체크포인트
-  ├── config.json              # 모델 설정 및 하이퍼파라미터
-  └── training_history.png     # 학습/검증 손실 곡선
-```
-
-#### 학습 과정에서 제공되는 기능
-- ✅ **Early Stopping**: 검증 손실이 개선되지 않으면 자동 종료
-- ✅ **Learning Rate Scheduling**: ReduceLROnPlateau로 학습률 자동 조정
-- ✅ **모델 체크포인팅**: 최고 성능 모델 자동 저장
-- ✅ **Progress Bar**: 실시간 학습 진행 상황 표시
-- ✅ **GPU 지원**: CUDA 자동 감지 및 사용
+1. **Upload** — `Amazon Sale Report.csv` 업로드. 행/열, 결측치, dtype 요약 확인
+2. **Train** — "전처리" 클릭 → 자동 분할(0.8/0.1/0.1) + `.npy` 산출 → 모델 타입·하이퍼파라미터 설정 후 학습 시작. 학습 중 손실 곡선/에폭/로그가 라이브 갱신
+3. **Evaluate** — 학습된 모델 선택 후 `X_test`에 대한 MAE/MSE/RMSE/R² + 산점도 확인
+4. **Compare** — 학습된 모든 모델을 동일 테스트셋으로 한 번에 비교 (메트릭 막대 차트, 베스트 모델 배지)
+5. **Predict**
+   - **Single**: 피처 벡터를 직접 입력해 단건 예측
+   - **Batch**: 신규 CSV 업로드 → 학습 시 사용한 `preprocessor.pkl`로 동일 변환 → 결과 CSV 다운로드
 
 ---
 
-### Step 6: 예측 및 평가
+## REST API 요약
 
-#### 기본 실행
-```bash
-python predict.py --model_path models/best_model.pth
-```
+- `GET  /api/health` — torch 버전 / CUDA 사용 가능 여부
+- `POST /api/data/upload` — CSV 업로드 (multipart)
+- `GET  /api/data/summary` — 활성 데이터셋 요약
+- `POST /api/preprocess` — 전처리 실행 → train/val/test 분할
+- `POST /api/train` — 학습 잡 비동기 시작
+- `GET  /api/train/active` — 활성/최근 잡 (새로고침 복구용)
+- `GET  /api/train/{job_id}` — 잡 상태 + 손실 이력
+- `GET  /api/train/{job_id}/log?since=N` — 증분 로그 폴링
+- `GET  /api/models` — 학습된 모델 목록
+- `POST /api/predict/batch?model_type=...` — 테스트셋 평가
+- `POST /api/predict/compare` — 모든 모델 비교 평가
+- `POST /api/predict/single?model_type=...` — 단일 입력 예측
+- `POST /api/predict/batch_csv?model_type=...` — CSV 배치 예측 (CSV 스트리밍 응답)
 
-#### 상세 옵션
-```bash
-python predict.py \
-  --model_path models/best_model.pth \
-  --config_path models/config.json \
-  --test_data X_test.npy \
-  --test_labels y_test.npy \
-  --batch_size 32 \
-  --use_dataloader \
-  --save_dir results
-```
-
-#### 수행 작업
-1. **모델 로드**
-   - 저장된 체크포인트 로드
-   - 모델 설정 복원
-
-2. **예측 수행**
-   - 테스트 데이터에 대한 예측
-   - 배치 처리로 효율적 계산
-
-3. **성능 평가**
-   - MAE (Mean Absolute Error)
-   - MSE (Mean Squared Error)
-   - RMSE (Root Mean Squared Error)
-   - R² Score
-
-4. **결과 시각화**
-   - Actual vs Predicted scatter plot
-   - Residual plot
-   - Residual distribution
-   - Time series comparison
-
-#### 생성되는 파일
-```
-📁 results/
-  ├── evaluation_results.json         # 성능 지표 JSON
-  ├── predictions.csv                 # 예측 결과 상세
-  └── prediction_visualization.png    # 4가지 시각화 플롯
-```
-
-#### predictions.csv 구조
-```csv
-Actual,Predicted,Residual,Absolute_Error
-100.5,98.3,2.2,2.2
-200.1,205.7,-5.6,5.6
-...
-```
+OpenAPI 문서: `http://localhost:8000/docs`
 
 ---
 
-## 📊 모델 아키텍처
+## CLI 사용 (선택)
 
-### 1. Basic Model (SalesPredictor)
-```
-Input (n_features)
-    ↓
-Linear(n_features → 256) + BatchNorm + ReLU + Dropout(0.3)
-    ↓
-Linear(256 → 128) + BatchNorm + ReLU + Dropout(0.3)
-    ↓
-Linear(128 → 64) + BatchNorm + ReLU + Dropout(0.3)
-    ↓
-Linear(64 → 1)
-    ↓
-Output (prediction)
-```
-
-**특징:**
-- 간단하고 효율적
-- 대부분의 회귀 문제에 적합
-- 빠른 학습 속도
-
-### 2. Advanced Model (AdvancedSalesPredictor)
-```
-Input (n_features)
-    ↓
-Linear(n_features → 256) + BatchNorm + ReLU + Dropout
-    ↓
-Residual Block 1 (256 → 256)
-    ↓
-Residual Block 2 (256 → 256)
-    ↓
-Residual Block 3 (256 → 256)
-    ↓
-Linear(256 → 128) + BatchNorm + ReLU + Dropout
-    ↓
-Linear(128 → 1)
-    ↓
-Output (prediction)
-```
-
-**특징:**
-- 깊은 네트워크 학습 가능
-- Gradient vanishing 문제 완화
-- 더 복잡한 패턴 학습
-
-### 3. Attention Model (AttentionSalesPredictor)
-```
-Input (n_features)
-    ↓
-Feature Embedding (n_features → 256)
-    ↓
-Multi-head Self-Attention (4 heads)
-    ↓
-Residual + Layer Norm
-    ↓
-Feed-Forward Network
-    ↓
-Residual + Layer Norm
-    ↓
-Output Layer
-    ↓
-Output (prediction)
-```
-
-**특징:**
-- 특성 간 관계 학습
-- 중요한 특성에 집중
-- 해석 가능성 향상
-
----
-
-## 💡 사용 팁
-
-### 1. GPU 사용
-CUDA가 설치된 환경에서는 자동으로 GPU를 사용합니다.
-```python
-# 학습 시 자동으로 감지
-Using device: cuda
-GPU 0: NVIDIA GeForce RTX 3080
-```
-
-### 2. 모델 비교
-여러 모델을 학습하여 성능 비교:
-```bash
-# Basic 모델
-python train.py --model_type basic --save_dir models/basic
-
-# Advanced 모델
-python train.py --model_type advanced --save_dir models/advanced
-
-# Attention 모델
-python train.py --model_type attention --save_dir models/attention
-
-# 각 모델 평가
-python predict.py --model_path models/basic/best_model.pth --save_dir results/basic
-python predict.py --model_path models/advanced/best_model.pth --save_dir results/advanced
-python predict.py --model_path models/attention/best_model.pth --save_dir results/attention
-```
-
-### 3. 하이퍼파라미터 튜닝
-실험해볼 수 있는 파라미터:
-- **Learning Rate**: [0.0001, 0.0005, 0.001, 0.005]
-- **Batch Size**: [16, 32, 64, 128]
-- **Hidden Dimensions**: [128,64], [256,128,64], [512,256,128]
-- **Dropout**: [0.2, 0.3, 0.4, 0.5]
-
-### 4. Early Stopping
-검증 손실이 개선되지 않으면 자동 종료:
-```bash
-# patience를 늘리면 더 오래 학습
-python train.py --patience 20
-
-# patience를 줄이면 빠르게 종료
-python train.py --patience 5
-```
-
-### 5. 학습 재개
-중단된 학습을 재개하려면 체크포인트 로드 기능 추가 필요 (현재는 처음부터 학습)
-
----
-
-## 🎯 빠른 시작 (전체 파이프라인)
-
-처음 프로젝트를 실행하는 경우:
+UI 없이 백엔드 ML 코어만 사용할 수도 있습니다. 모두 `backend/`에서 실행합니다.
 
 ```bash
-# 1. 패키지 설치
-pip install -r requirements.txt
-
-# 2. 데이터 다운로드 (Kaggle에서)
-# Amazon Sale Report.csv를 현재 디렉토리에 저장
-
-# 3. 데이터 분석
+# 1) EDA
 python data_analysis.py
 
-# 4. 데이터 전처리
+# 2) 전처리 (X_*.npy / y_*.npy / preprocessor.pkl 생성)
 python data_preprocessing.py
 
-# 5. 모델 학습
-python train.py --epochs 100
+# 3) 학습
+python train.py --model_type basic     --epochs 100 --batch_size 32 --lr 0.001
+python train.py --model_type advanced  --epochs 100 --batch_size 32 --lr 0.001
+python train.py --model_type attention --epochs 100 --batch_size 32 --lr 0.001
 
-# 6. 예측 및 평가
-python predict.py
+# 4) 예측/평가
+python predict.py --model_path models/basic/best_model.pth
 ```
 
-**예상 소요 시간:**
-- 데이터 분석: 2-5분
-- 데이터 전처리: 5-10분
-- 모델 학습: 10-30분 (데이터 크기 및 하드웨어에 따라)
-- 예측 및 평가: 1-2분
+주요 학습 인자:
+
+- `--model_type` (default `basic`) — basic / advanced / attention
+- `--hidden_dims` (default `256 128 64`) — 은닉층 차원
+- `--dropout` (default `0.3`) — 드롭아웃 비율
+- `--epochs` (default `100`) — 에폭 수
+- `--batch_size` (default `32`) — 배치 크기
+- `--lr` (default `0.001`) — 학습률
+- `--weight_decay` (default `1e-5`) — L2 정규화
+- `--patience` (default `15`) — EarlyStopping patience
+- `--seed` (default `42`) — 랜덤 시드
 
 ---
 
-## 📈 성능 지표 해석
+## 모델 아키텍처
 
-### MAE (Mean Absolute Error)
-- 예측값과 실제값의 평균 절대 오차
-- **낮을수록 좋음**
-- 해석: 평균적으로 예측이 실제값에서 얼마나 벗어나는지
+### 1) Basic — `SalesPredictor`
+```
+Input → [Linear → BN → ReLU → Dropout] × N (default 256→128→64) → Linear → Output
+```
+간단·빠름. 회귀 베이스라인.
 
-### RMSE (Root Mean Squared Error)
-- 예측값과 실제값의 평균 제곱근 오차
-- **낮을수록 좋음**
-- MAE보다 큰 오차에 더 민감
+### 2) Advanced — `AdvancedSalesPredictor`
+```
+Input → Linear(hidden) → ResidualBlock × N → Linear → Output
+```
+스킵 커넥션으로 깊은 네트워크 학습 안정화 (gradient vanishing 완화).
 
-### R² Score
-- 모델의 설명력
-- **1에 가까울수록 좋음**
-- 0.8 이상: 매우 좋음
-- 0.6-0.8: 좋음
-- 0.4-0.6: 보통
-- 0.4 미만: 개선 필요
+### 3) Attention — `AttentionSalesPredictor`
+```
+Input → Embedding → MultiheadAttention → +Residual → LayerNorm
+      → FFN → +Residual → LayerNorm → Output
+```
+피처 간 관계를 self-attention으로 학습.
+
+세 모델 모두 `model.py`의 `get_model(model_type, input_dim, **kwargs)` 팩토리로 생성됩니다.
 
 ---
 
-## 🔧 문제 해결
+## 전처리 파이프라인
 
-### 1. CUDA Out of Memory
-```bash
-# 배치 크기 줄이기
-python train.py --batch_size 16
+`backend/data_preprocessing.py`의 `DataPreprocessor`가 sklearn 스타일 fit/transform을 따릅니다.
 
-# 또는 모델 크기 줄이기
-python train.py --hidden_dims 128 64
-```
+1. 불필요 컬럼 제거 (ID, 노이즈)
+2. 타깃 결측 행 제거 → 취소 주문(Amount=0) 필터
+3. 날짜 피처 추출 (`year, month, day, dayofweek, quarter`)
+4. **TRAIN 분할에서만 fit**: 결측 통계(median/mode), 카테고리 인코더(top-50, 나머지는 "Other"), `StandardScaler`
+5. **모든 분할에 transform 적용** — 추론 시 `preprocessor.pkl`을 재로드해 동일 변환 보장
 
-### 2. 학습이 느린 경우
-```bash
-# 배치 크기 늘리기 (GPU 메모리가 충분한 경우)
-python train.py --batch_size 128
-
-# 에포크 수 줄이기
-python train.py --epochs 50
-```
-
-### 3. Overfitting 발생
-```bash
-# Dropout 증가
-python train.py --dropout 0.5
-
-# Weight decay 증가
-python train.py --weight_decay 1e-4
-
-# Early stopping patience 줄이기
-python train.py --patience 10
-```
-
-### 4. Underfitting 발생
-```bash
-# 모델 크기 증가
-python train.py --hidden_dims 512 256 128 64
-
-# Dropout 감소
-python train.py --dropout 0.2
-
-# 학습률 조정
-python train.py --lr 0.0005
-```
+산출물: `X_train.npy / X_val.npy / X_test.npy` + `y_*.npy` + `preprocessor.pkl`. 분할은 **0.8 / 0.1 / 0.1**.
 
 ---
 
-## 🎓 학습 자료
+## 성능 지표
 
-PyTorch 및 딥러닝 학습을 위한 추천 자료:
-- [PyTorch 공식 문서](https://pytorch.org/docs/stable/index.html)
-- [PyTorch 튜토리얼](https://pytorch.org/tutorials/)
-- [Deep Learning Specialization (Coursera)](https://www.coursera.org/specializations/deep-learning)
-- [Fast.ai](https://www.fast.ai/)
+- **MAE** — 평균 절대 오차. 낮을수록 좋음.
+- **MSE** — 평균 제곱 오차. 낮을수록 좋음.
+- **RMSE** — 평균 제곱근 오차 (큰 오차에 민감). 낮을수록 좋음.
+- **R²** — 설명력. 1에 가까울수록 좋음 (0.8↑ 매우 좋음, 0.6~0.8 좋음, 0.4~0.6 보통, <0.4 개선 필요).
+
+평가 결과는 UI(Evaluate/Compare 화면)와 `backend/results/evaluation_results.json` 양쪽에서 확인할 수 있습니다.
 
 ---
+
+## 동시성과 운영 주의사항
+
+- 학습 잡은 `JobStore`(인메모리)로 관리되며 **동시 학습 1개**만 허용됩니다 (GPU·matplotlib 전역 상태 보호).
+- 프로세스 재시작 시 잡 이력이 초기화됩니다 (DB 미사용).
+- Uvicorn은 `--workers 1`로 실행하세요. 멀티 워커는 인메모리 잡 상태와 호환되지 않습니다.
+- 업로드 한도 100 MB (`MAX_UPLOAD_BYTES` in `app/settings.py`).
+
+---
+
+## 트러블슈팅
+
+- **CUDA OOM** → `--batch_size`를 16 등으로 축소, 또는 `--hidden_dims 128 64`로 모델 축소
+- **학습 속도 느림** → GPU 메모리 충분 시 `--batch_size 128`, 또는 `--epochs 50`
+- **Overfitting** → `--dropout 0.5`, `--weight_decay 1e-4`, `--patience 10`
+- **Underfitting** → `--hidden_dims 512 256 128 64`, `--dropout 0.2`, `--lr 0.0005`
+- **`/api/data/summary` 404** → 아직 업로드한 데이터셋이 없음. UI Upload 또는 `POST /api/data/upload` 먼저
+- **배치 예측 컬럼 불일치** → 학습 시 사용한 `preprocessor.pkl`과 다른 스키마. 동일한 컬럼 셋의 CSV 업로드 필요
+- **새로고침 후 학습 화면 빔** → `localStorage`의 `jobId`로 복구 시도. `GET /api/train/active`로도 복구 가능
+
+---
+
+## 참고 문서
+
+- 시스템 아키텍처: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- UML 다이어그램(Mermaid): [`docs/UML.md`](docs/UML.md)
+- API 스키마(자동 생성): `http://localhost:8000/docs` 또는 `http://localhost:8000/openapi.json`
+
+---
+
+## 라이선스
+
+[`LICENSE`](LICENSE) 파일 참조.
